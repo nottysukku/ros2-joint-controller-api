@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROS2 Joint Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #4a5568;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .header p {
+            text-align: center;
+            color: #718096;
+            font-size: 1.1rem;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.offline {
+            background: #f56565;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .joint-control {
+            margin-bottom: 20px;
+        }
+
+        .joint-control label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .joint-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .joint-input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .joint-input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }
+
+        .btn-pose {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn-pose:hover {
+            box-shadow: 0 8px 25px rgba(72, 187, 120, 0.3);
+        }
+
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .response.success {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            color: #22543d;
+        }
+
+        .response.error {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            color: #742a2a;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .range-display {
+            font-size: 0.8rem;
+            color: #718096;
+            margin-top: 5px;
+        }
+
+        .joint-range {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .joint-input-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 ROS2 Joint Controller</h1>
+            <p>Control your robot joints through REST API</p>
+            <div class="status">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="statusText">Checking connection...</span>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Individual Joint Control -->
+            <div class="card">
+                <h2>🎛️ Individual Joint Control</h2>
+                <div id="jointControls">
+                    <!-- Joint controls will be populated here -->
+                </div>
+                <div id="individualResponse" class="response" style="display: none;"></div>
+            </div>
+
+            <!-- Multiple Joint Control -->
+            <div class="card">
+                <h2>🔄 Multiple Joint Control</h2>
+                <div id="multiJointControls">
+                    <!-- Multi-joint controls will be populated here -->
+                </div>
+                <button class="btn" onclick="moveMultipleJoints()">
+                    Move All Joints
+                </button>
+                <div id="multiResponse" class="response" style="display: none;"></div>
+            </div>
+
+            <!-- Predefined Poses -->
+            <div class="card">
+                <h2>🎯 Predefined Poses</h2>
+                <div id="poseButtons">
+                    <!-- Pose buttons will be populated here -->
+                </div>
+                <div id="poseResponse" class="response" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        let joints = [];
+        let poses = [];
+
+        // Check API health and load data
+        async function init() {
+            await checkHealth();
+            await loadJoints();
+            await loadPoses();
+        }
+
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                
+                const indicator = document.getElementById('statusIndicator');
+                const statusText = document.getElementById('statusText');
+                
+                if (data.status === 'healthy' && data.ros_connected) {
+                    indicator.classList.remove('offline');
+                    statusText.textContent = 'Connected to ROS2';
+                } else {
+                    indicator.classList.add('offline');
+                    statusText.textContent = 'ROS2 connection issue';
+                }
+            } catch (error) {
+                const indicator = document.getElementById('statusIndicator');
+                const statusText = document.getElementById('statusText');
+                indicator.classList.add('offline');
+                statusText.textContent = 'API offline';
+                console.error('Health check failed:', error);
+            }
+        }
+
+        async function loadJoints() {
+            try {
+                const response = await fetch(`${API_BASE}/api/joints`);
+                const data = await response.json();
+                joints = data.joints;
+                
+                createJointControls();
+                createMultiJointControls();
+            } catch (error) {
+                console.error('Failed to load joints:', error);
+            }
+        }
+
+        async function loadPoses() {
+            try {
+                const response = await fetch(`${API_BASE}/api/poses`);
+                const data = await response.json();
+                poses = data.poses;
+                
+                createPoseButtons();
+            } catch (error) {
+                console.error('Failed to load poses:', error);
+            }
+        }
+
+        function createJointControls() {
+            const container = document.getElementById('jointControls');
+            container.innerHTML = '';
+            
+            joints.forEach(joint => {
+                const div = document.createElement('div');
+                div.className = 'joint-control';
+                div.innerHTML = `
+                    <label>${joint.name.toUpperCase()}</label>
+                    <input type="range" id="range_${joint.name}" class="joint-range" 
+                           min="-3.14159" max="3.14159" step="0.1" value="0"
+                           onchange="updateJointInput('${joint.name}', this.value)">
+                    <div class="joint-input-group">
+                        <input type="number" id="input_${joint.name}" 
+                               placeholder="Position (radians)" 
+                               min="-3.14159" max="3.14159" step="0.1" value="0"
+                               onchange="updateJointRange('${joint.name}', this.value)">
+                        <button class="btn btn-small" onclick="moveSingleJoint('${joint.name}')">
+                            Move
+                        </button>
+                    </div>
+                    <div class="range-display">Range: -π to π radians (-180° to 180°)</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function createMultiJointControls() {
+            const container = document.getElementById('multiJointControls');
+            container.innerHTML = '';
+            
+            joints.forEach(joint => {
+                const div = document.createElement('div');
+                div.className = 'joint-control';
+                div.innerHTML = `
+                    <label>${joint.name.toUpperCase()}</label>
+                    <input type="range" id="multi_range_${joint.name}" class="joint-range" 
+                           min="-3.14159" max="3.14159" step="0.1" value="0"
+                           onchange="updateMultiJointInput('${joint.name}', this.value)">
+                    <input type="number" id="multi_input_${joint.name}" 
+                           placeholder="Position (radians)" 
+                           min="-3.14159" max="3.14159" step="0.1" value="0"
+                           onchange="updateMultiJointRange('${joint.name}', this.value)">
+                    <div class="range-display">Range: -π to π radians</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function createPoseButtons() {
+            const container = document.getElementById('poseButtons');
+            container.innerHTML = '';
+            
+            poses.forEach(pose => {
+                const button = document.createElement('button');
+                button.className = 'btn btn-pose';
+                button.onclick = () => executePose(pose.name);
+                
+                const jointList = Object.entries(pose.joints)
+                    .map(([joint, pos]) => `${joint}: ${pos.toFixed(2)}`)
+                    .join(', ');
+                    
+                button.innerHTML = `
+                    <strong>${pose.name.toUpperCase()}</strong><br>
+                    <small>${jointList}</small>
+                `;
+                container.appendChild(button);
+            });
+        }
+
+        function updateJointInput(jointName, value) {
+            document.getElementById(`input_${jointName}`).value = value;
+        }
+
+        function updateJointRange(jointName, value) {
+            document.getElementById(`range_${jointName}`).value = value;
+        }
+
+        function updateMultiJointInput(jointName, value) {
+            document.getElementById(`multi_input_${jointName}`).value = value;
+        }
+
+        function updateMultiJointRange(jointName, value) {
+            document.getElementById(`multi_range_${jointName}`).value = value;
+        }
+
+        async function moveSingleJoint(jointName) {
+            const input = document.getElementById(`input_${jointName}`);
+            const position = parseFloat(input.value);
+            
+            if (isNaN(position)) {
+                showResponse('individualResponse', 'Please enter a valid number', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/joint/${jointName}/move`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ position })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResponse('individualResponse', 
+                        `Successfully moved ${jointName} to position ${position}`, 'success');
+                } else {
+                    showResponse('individualResponse', 
+                        `Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResponse('individualResponse', 
+                    `Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function moveMultipleJoints() {
+            const jointPositions = {};
+            
+            joints.forEach(joint => {
+                const input = document.getElementById(`multi_input_${joint.name}`);
+                const position = parseFloat(input.value);
+                if (!isNaN(position)) {
+                    jointPositions[joint.name] = position;
+                }
+            });
+
+            if (Object.keys(jointPositions).length === 0) {
+                showResponse('multiResponse', 'Please enter valid positions for at least one joint', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/joints/move`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ joints: jointPositions })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const successMsg = data.results
+                        .filter(r => r.success)
+                        .map(r => `${r.joint}: ${r.position}`)
+                        .join(', ');
+                    
+                    const errorMsg = data.errors.length > 0 
+                        ? '\nErrors: ' + data.errors.join(', ')
+                        : '';
+                    
+                    showResponse('multiResponse', 
+                        `Successfully moved joints: ${successMsg}${errorMsg}`, 
+                        data.errors.length > 0 ? 'error' : 'success');
+                } else {
+                    showResponse('multiResponse', 
+                        `Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResponse('multiResponse', 
+                    `Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function executePose(poseName) {
+            try {
+                const response = await fetch(`${API_BASE}/api/pose/${poseName}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const successMsg = data.results
+                        .filter(r => r.success)
+                        .map(r => `${r.joint}: ${r.position}`)
+                        .join(', ');
+                    
+                    showResponse('poseResponse', 
+                        `Successfully executed pose "${poseName}": ${successMsg}`, 'success');
+                } else {
+                    showResponse('poseResponse', 
+                        `Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResponse('poseResponse', 
+                    `Network error: ${error.message}`, 'error');
+            }
+        }
+
+        function showResponse(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `response ${type}`;
+            element.style.display = 'block';
+            
+            // Auto-hide after 5 seconds for success messages
+            if (type === 'success') {
+                setTimeout(() => {
+                    element.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        // Initialize the application
+        init();
+
+        // Refresh status every 5 seconds
+        setInterval(checkHealth, 5000);
+    </script>
+</body>
+</html>
