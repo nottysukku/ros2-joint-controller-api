@@ -10,12 +10,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// WSL2 IP Configuration - Update this with your WSL2 IP
-const WSL2_IP = process.env.WSL2_IP || '172.20.226.22' ; // Get this from: wsl hostname -I
-const WSL2_PORT = 8080; // Port where ROS2 bridge server runs
-const WSL2_BASE_URL = `http://${WSL2_IP}:${WSL2_PORT}`;
+// ngrok Tunnel Configuration - Update this with your ngrok URL
+const WSL2_TUNNEL_URL = process.env.WSL2_TUNNEL_URL || 'https://89cf7a9d42ec.ngrok-free.app/';
+const WSL2_BASE_URL = WSL2_TUNNEL_URL;
 
-console.log(`🔗 Connecting to WSL2 ROS2 Bridge at: ${WSL2_BASE_URL}`);
+console.log(`🔗 Connecting to ROS2 Bridge via ngrok tunnel at: ${WSL2_BASE_URL}`);
 
 // Joint configuration
 const JOINT_CONFIG = {
@@ -303,8 +302,8 @@ app.use((req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`\n🚀 Windows ROS2 Joint Controller API running on http://localhost:${PORT}`);
-  console.log(`🔗 Connecting to WSL2 ROS2 Bridge at: ${WSL2_BASE_URL}`);
+  console.log(`\n🚀 ROS2 Joint Controller API running on http://localhost:${PORT}`);
+  console.log(`🔗 Connecting to ROS2 Bridge via ngrok tunnel at: ${WSL2_BASE_URL}`);
   console.log('\n📋 Available endpoints:');
   console.log(`  GET  http://localhost:${PORT}/api/health`);
   console.log(`  GET  http://localhost:${PORT}/api/joints`);
@@ -314,8 +313,8 @@ app.listen(PORT, () => {
   console.log(`  POST http://localhost:${PORT}/api/pose/:poseName`);
   console.log(`  GET  http://localhost:${PORT}/api/wsl2/detect`);
   console.log(`\n📖 Visit http://localhost:${PORT} for the web interface`);
-  console.log(`\n💡 To find your WSL2 IP, run in WSL2: hostname -I`);
-  console.log(`💡 Then set: set WSL2_IP=YOUR_WSL2_IP`);
+  console.log(`\n💡 To get your ngrok URL, run in WSL2: ngrok http 8080`);
+  console.log(`💡 Then set: export WSL2_TUNNEL_URL=https://your-ngrok-url.ngrok-free.app`);
 });
 
 // Graceful shutdown
