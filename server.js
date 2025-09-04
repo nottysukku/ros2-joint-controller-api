@@ -11,7 +11,7 @@
   app.use(express.static('public'));
 
   // ngrok Tunnel Configuration - Update this with your ngrok URL
-  const WSL2_TUNNEL_URL = process.env.WSL2_TUNNEL_URL || 'https://222ce545272c.ngrok-free.app/';
+  const WSL2_TUNNEL_URL = process.env.WSL2_TUNNEL_URL || 'https://e097ecf52fb3.ngrok-free.app/';
   const WSL2_BASE_URL = WSL2_TUNNEL_URL;
 
   console.log(`🔗 Connecting to ROS2 Bridge via ngrok tunnel at: ${WSL2_BASE_URL}`);
